@@ -193,6 +193,17 @@ def hash_key_write(password):
         print(f"Eroare: {e}")
 
 
+def cripteaza(password, key):
+    n = len(key)
+    rez = ""
+    for i in range(0, len(password)):
+        key_byte = key[(i * 2) % n : (i * 2 + 2)% n]
+        key_byte = int(key_byte, 16)
+        rez += chr(ord(password[i]) ^ key_byte)
+    #print(rez)
+    return rez
+
+
 def opendb():
     try:
         print("Pornim baza de date...\n")
@@ -210,52 +221,75 @@ def opendb():
         print(f"Eroare: {e}")
 
 
-def add(website, username, password):
+def add(website, username, password, logged, key):
     try:
-        print("Execut comanda add...\n")
-        cursor.execute('INSERT INTO passwords (website, username, password) VALUES (?, ?, ?)',
-                   (website, username, password))
-        conn.commit()
+        if logged == True:
+            print("Execut comanda add...\n")
+            cursor.execute('INSERT INTO passwords (website, username, password) VALUES (?, ?, ?)',
+                           (website, username, cripteaza(password, key)))
+            conn.commit()
+            print("Adaugat cu succes!\n")
+        else:
+            print("Eroare: Nu poti adauga in baza de date: parola introdusa este incorecta!\n")
     except sqlite3.IntegrityError as e:
         print("Eroare: Username existent!\n")
 
-def get(website):
+def get(website, logged, key):
     try:
         print("Execut comanda get...\n")
         query = 'SELECT website, username, password FROM passwords where website = ?'
         cursor.execute(query, (website,))
         rows = cursor.fetchall()
-        if rows:
-            for row in rows:
-                print(row)
+        if logged == False:
+            if rows:
+                for row in rows:
+                    print(f"Website: {row[0]} | Username: {row[1]} | Password: {row[2]}")
+            else:
+                print("Goala")
+            print()
         else:
-            print("Goala")
-        print()
+            if rows:
+                for row in rows:
+                    print(f"Website: {row[0]} | Username: {row[1]} | Password: {cripteaza(row[2], key)}")
+            else:
+                print("Goala")
+            print()
     except Exception as e:
         print(f"Eroare: {e}")
 
 
-def remove(website):
+def remove(website, logged):
     try:
-        print("Execut comanda remove...\n")
-        query = 'DELETE FROM passwords where website = ?'
-        cursor.execute(query, (website,))
-        conn.commit()
+        if logged == True:
+            print("Execut comanda remove...\n")
+            query = 'DELETE FROM passwords where website = ?'
+            cursor.execute(query, (website,))
+            conn.commit()
+        else:
+            print("Eroare: Nu poti sterge din baza de date: Parola introdusa este incorecta!\n")
     except Exception as e:
         print(f"Eroare: {e}")
 
-def list():
+def list(logged, key):
     try:
         print("Execut comanda list...\n")
         cursor.execute("SELECT * from passwords")
         rows = cursor.fetchall()
         print("Lista bazei de date este:")
-        if rows:
-            for row in rows:
-                print(f"ID: {row[0]} | Website: {row[1]} | Username: {row[2]} | Password: {row[3]}")
+        if logged==False:
+            if rows:
+                for row in rows:
+                    print(f"ID: {row[0]} | Website: {row[1]} | Username: {row[2]} | Password: {row[3]}")
+            else:
+                print("Goala")
+            print()
         else:
-            print("Goala")
-        print()
+            if rows:
+                for row in rows:
+                    print(f"ID: {row[0]} | Website: {row[1]} | Username: {row[2]} | Password: {cripteaza(row[3], key)}")
+            else:
+                print("Goala")
+            print()
     except Exception as e:
         print(f"Eroare: {e}")
 
@@ -277,32 +311,35 @@ def main():
     try:
         opendb()
         master_password=sys.argv[1]
+        # hash_key_write("ParolaSecreta")
+        file = open("hashkey.meta", "r")
+        file_buffer = file.read()
+        if sha1(master_password) == file_buffer:
+            print("Parola corecta, bine ai revenit!\n")
+            logged=True
+        else:
+            print("Parola Incorecta!\n")
+            logged=False
+        file.close()
+
         operation=sys.argv[2]
-        print(f"Operatia aleasa este: \"{operation}\"\n")
+        #print(f"Operatia aleasa este: \"{operation}\"\n")
         if operation == '-add':
             if len(sys.argv) != 6:
                 print("Input-ul comenzii \"add\" este invalid..")
                 exit(0)
-            add(sys.argv[3], sys.argv[4], sys.argv[5])
+            add(sys.argv[3], sys.argv[4], sys.argv[5], logged, file_buffer)
         elif operation == '-get':
-            get(sys.argv[3])
+            get(sys.argv[3], logged, file_buffer)
         elif operation == '-remove':
-            remove(sys.argv[3])
+            remove(sys.argv[3], logged)
         elif operation == '-list':
-            list()
+            list(logged, file_buffer)
         else:
             print("Eroare: Comanda Invalida!")
             exit(0)
         closedb()
 
-        #hash_key_write("ParolaSecreta")
-        file = open("hashkey.meta", "r")
-        file_buffer = file.read()
-        if sha1(master_password) == file_buffer:
-            print("Correct Key!")
-        else:
-            print("Wrong Key!")
-            exit(0)
     except IndexError:
         print("Eroare: Incearca ca input: \"pwmanager.py <master_password> -<operation> <website> <username> <password>\"")
     except Exception as e:

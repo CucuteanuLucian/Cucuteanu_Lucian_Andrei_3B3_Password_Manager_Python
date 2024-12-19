@@ -176,7 +176,23 @@ def sha1(password):
     hex_h4 = str(hex(int(h4, 2))[2:])
     rez_final=hex_h0+hex_h1+hex_h2+hex_h3+hex_h4
     print(rez_final)
+    return rez_final
 
 
 
-sha1("ParolaSecreta")
+x = sha1("ParolaSecreta")
+
+
+def cripteaza(password, key):
+    n = len(key)
+    rez = ""
+    for i in range(0, len(password)):
+        key_byte = key[(i * 2) % n : (i * 2 + 2)% n]
+        key_byte = int(key_byte, 16)
+        rez += chr(ord(password[i]) ^ key_byte)
+    print(rez)
+    return rez
+
+y=cripteaza("ParolaSecreta", x)
+cripteaza(y, x)
+
